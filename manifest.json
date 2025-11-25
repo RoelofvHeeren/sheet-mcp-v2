@@ -1,0 +1,29 @@
+{
+  "name": "google-sheets-mcp",
+  "version": "1.0.0",
+  "description": "Google Sheets MCP with OAuth refresh support",
+  "mcp": {
+    "tools": [
+      {
+        "name": "append_rows",
+        "description": "Append rows to a Google Sheet",
+        "input_schema": {
+          "type": "object",
+          "required": ["spreadsheetId", "range", "rows"],
+          "properties": {
+            "spreadsheetId": { "type": "string" },
+            "range": { "type": "string" },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ]
+  }
+}

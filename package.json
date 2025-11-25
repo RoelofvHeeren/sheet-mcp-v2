@@ -1,0 +1,16 @@
+{
+  "name": "google-sheets-mcp",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "start:http": "node http-server.js",
+    "auth": "node oauth-init.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "googleapis": "^133.0.0",
+    "dotenv": "^16.0.0"
+  }
+}
