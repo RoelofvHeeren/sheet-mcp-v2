@@ -97,6 +97,18 @@ async function appendRows({ spreadsheetId, range, rows }) {
   };
 }
 
+async function readRows({ spreadsheetId, range }) {
+  const auth = await ensureAuth();
+  const sheets = google.sheets({ version: "v4", auth });
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range,
+  });
+
+  return { rows: res.data.values ?? [] };
+}
+
 const server = new McpServer(
   { name: "google-sheets-mcp", version: "1.0.0" },
   { capabilities: {} },
@@ -126,6 +138,34 @@ server.tool(
   async (input) => {
     try {
       return await appendRows(input);
+    } catch (err) {
+      if (err instanceof McpError) {
+        throw err;
+      }
+
+      const message = err?.message || "Unknown error";
+      throw new McpError(ErrorCode.InternalError, message);
+    }
+  },
+);
+
+server.tool(
+  "read_rows",
+  {
+    description: "Reads rows from a specific sheet and range in a Google Spreadsheet.",
+    inputSchema: {
+      type: "object",
+      required: ["spreadsheetId", "range"],
+      properties: {
+        spreadsheetId: { type: "string" },
+        range: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  },
+  async (input) => {
+    try {
+      return await readRows(input);
     } catch (err) {
       if (err instanceof McpError) {
         throw err;

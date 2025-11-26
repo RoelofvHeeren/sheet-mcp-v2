@@ -23,6 +23,19 @@
           },
           "additionalProperties": false
         }
+      },
+      {
+        "name": "read_rows",
+        "description": "Reads rows from a specific sheet and range in a Google Spreadsheet.",
+        "input_schema": {
+          "type": "object",
+          "required": ["spreadsheetId", "range"],
+          "properties": {
+            "spreadsheetId": { "type": "string" },
+            "range": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
       }
     ]
   }
