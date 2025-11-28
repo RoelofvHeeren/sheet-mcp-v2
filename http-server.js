@@ -74,6 +74,38 @@ async function readRows(input) {
   return { rows: res.data.values ?? [] };
 }
 
+async function readSse(req, res) {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+
+  try {
+    const body = await new Promise((resolve, reject) => {
+      let data = "";
+      req.on("data", (chunk) => {
+        data += chunk;
+      });
+      req.on("end", () => resolve(data));
+      req.on("error", reject);
+    });
+
+    const parsed = body ? JSON.parse(body) : {};
+    const params = parsed.params || parsed;
+    const { spreadsheetId, range } = params ?? {};
+
+    const result = await readRows({ spreadsheetId, range });
+    const firstRow = result.rows?.length ? [result.rows[0]] : [];
+    res.write(`data: ${JSON.stringify({ rows: firstRow })}\n\n`);
+  } catch (err) {
+    const message = err?.message || "Unknown error";
+    res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
+  } finally {
+    res.end();
+  }
+}
+
 const mcpServer = new McpServer(
   { name: "google-sheets-mcp", version: "1.0.0" },
   { capabilities: {} },
@@ -150,6 +182,11 @@ const transport = new StreamableHTTPServerTransport({
 });
 
 const httpServer = http.createServer(async (req, res) => {
+  if (req.url === "/read" && req.method === "POST") {
+    await readSse(req, res);
+    return;
+  }
+
   if (!req.url?.startsWith(ENDPOINT)) {
     res.writeHead(404).end("Not Found");
     return;
