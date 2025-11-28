@@ -8,7 +8,8 @@ import { getSheetsClient } from "./sheetsClient.js";
 
 dotenv.config();
 
-const { GSHEETS_CLIENT_ID, GSHEETS_CLIENT_SECRET } = process.env;
+const { GSHEETS_CLIENT_ID, GSHEETS_CLIENT_SECRET, DEFAULT_SHEET_ID, DEFAULT_RANGE } =
+  process.env;
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const ENDPOINT = "/mcp";
 
@@ -24,12 +25,29 @@ function assertEnv(value, name) {
 assertEnv(GSHEETS_CLIENT_ID, "GSHEETS_CLIENT_ID");
 assertEnv(GSHEETS_CLIENT_SECRET, "GSHEETS_CLIENT_SECRET");
 
-async function appendRows({ spreadsheetId, range, rows }) {
+function resolveTarget(input) {
+  const spreadsheetId = input?.spreadsheetId || DEFAULT_SHEET_ID;
+  const range = input?.range || DEFAULT_RANGE;
+
+  if (!spreadsheetId || !range) {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      "Missing spreadsheetId and range, and no fallback defined in .env",
+    );
+  }
+
+  console.log(`[Sheets] Using spreadsheetId=${spreadsheetId}, range=${range}`);
+  return { spreadsheetId, range };
+}
+
+async function appendRows(input) {
+  const { spreadsheetId, range, rows } = input;
+  const target = resolveTarget({ spreadsheetId, range });
   const sheets = await getSheetsClient();
 
   const res = await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range,
+    spreadsheetId: target.spreadsheetId,
+    range: target.range,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: rows,
@@ -43,12 +61,14 @@ async function appendRows({ spreadsheetId, range, rows }) {
   };
 }
 
-async function readRows({ spreadsheetId, range }) {
+async function readRows(input) {
+  const { spreadsheetId, range } = input;
+  const target = resolveTarget({ spreadsheetId, range });
   const sheets = await getSheetsClient();
 
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range,
+    spreadsheetId: target.spreadsheetId,
+    range: target.range,
   });
 
   return { rows: res.data.values ?? [] };
@@ -65,7 +85,7 @@ mcpServer.tool(
     description: "Append rows to a Google Sheet",
     inputSchema: {
       type: "object",
-      required: ["spreadsheetId", "range", "rows"],
+      required: ["rows"],
       properties: {
         spreadsheetId: { type: "string" },
         range: { type: "string" },
@@ -100,7 +120,7 @@ mcpServer.tool(
     description: "Reads rows from a specific sheet and range in a Google Spreadsheet.",
     inputSchema: {
       type: "object",
-      required: ["spreadsheetId", "range"],
+      required: [],
       properties: {
         spreadsheetId: { type: "string" },
         range: { type: "string" },

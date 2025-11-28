@@ -6,12 +6,35 @@ import { getSheetsClient } from "./sheetsClient.js";
 
 dotenv.config();
 
-async function appendRows({ spreadsheetId, range, rows }) {
+const { DEFAULT_SHEET_ID, DEFAULT_RANGE } = process.env;
+
+// Fallback resolution:
+// - Use spreadsheetId/range from the incoming request when provided.
+// - Otherwise fall back to DEFAULT_SHEET_ID / DEFAULT_RANGE in .env.
+// - If neither exist, the request fails with InvalidRequest.
+function resolveTarget(input) {
+  const spreadsheetId = input?.spreadsheetId || DEFAULT_SHEET_ID;
+  const range = input?.range || DEFAULT_RANGE;
+
+  if (!spreadsheetId || !range) {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      "Missing spreadsheetId and range, and no fallback defined in .env",
+    );
+  }
+
+  console.log(`[Sheets] Using spreadsheetId=${spreadsheetId}, range=${range}`);
+  return { spreadsheetId, range };
+}
+
+async function appendRows(input) {
+  const { spreadsheetId, range, rows } = input;
+  const target = resolveTarget({ spreadsheetId, range });
   const sheets = await getSheetsClient();
 
   const res = await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range,
+    spreadsheetId: target.spreadsheetId,
+    range: target.range,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: rows,
@@ -25,12 +48,14 @@ async function appendRows({ spreadsheetId, range, rows }) {
   };
 }
 
-async function readRows({ spreadsheetId, range }) {
+async function readRows(input) {
+  const { spreadsheetId, range } = input;
+  const target = resolveTarget({ spreadsheetId, range });
   const sheets = await getSheetsClient();
 
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range,
+    spreadsheetId: target.spreadsheetId,
+    range: target.range,
   });
 
   return { rows: res.data.values ?? [] };
@@ -47,7 +72,7 @@ server.tool(
     description: "Append rows to a Google Sheet",
     inputSchema: {
       type: "object",
-      required: ["spreadsheetId", "range", "rows"],
+      required: ["rows"],
       properties: {
         spreadsheetId: { type: "string" },
         range: { type: "string" },
@@ -82,7 +107,7 @@ server.tool(
     description: "Reads rows from a specific sheet and range in a Google Spreadsheet.",
     inputSchema: {
       type: "object",
-      required: ["spreadsheetId", "range"],
+      required: [],
       properties: {
         spreadsheetId: { type: "string" },
         range: { type: "string" },
