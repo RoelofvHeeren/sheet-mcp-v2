@@ -81,6 +81,11 @@ async function readSse(req, res) {
     Connection: "keep-alive",
   });
 
+  const cleanup = () => {
+    res.end();
+  };
+  req.on("close", cleanup);
+
   try {
     const body = await new Promise((resolve, reject) => {
       let data = "";
@@ -101,7 +106,6 @@ async function readSse(req, res) {
   } catch (err) {
     const message = err?.message || "Unknown error";
     res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
-  } finally {
     res.end();
   }
 }
